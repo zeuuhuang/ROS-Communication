@@ -1,0 +1,3 @@
+<launch>
+  <node name="talker_node" pkg="ucsd_robo_car_simple_ros" type="talker_node.py" />
+</launch>

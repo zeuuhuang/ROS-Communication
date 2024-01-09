@@ -1,0 +1,127 @@
+# This is an auto generated Dockerfile for ros:desktop-full
+# generated from docker_images/create_ros_image.Dockerfile.em
+FROM ros:noetic
+
+ARG UBUNTU_RELEASE_YEAR=20
+ARG ZED_SDK_MAJOR=3
+ARG ZED_SDK_MINOR=5
+ARG CUDA_MAJOR=10
+ARG CUDA_MINOR=2
+ARG OPENCV_VERSION=4.5.0
+WORKDIR /
+
+#
+# install ros packages
+#
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-noetic-desktop-full=1.5.0-1* \
+    && rm -rf /var/lib/apt/lists/*
+
+#
+# install ros package
+#
+RUN apt-get update && apt-get install -y \
+      ros-${ROS_DISTRO}-ros-tutorials \
+      ros-${ROS_DISTRO}-hector-slam \
+      ros-${ROS_DISTRO}-scan-tools \
+      ros-${ROS_DISTRO}-map-server \
+      ros-${ROS_DISTRO}-common-tutorials &&\
+    rm -rf /var/lib/apt/lists/*
+
+#
+# adafruit servokit
+#
+WORKDIR /
+RUN apt-get update && \
+    apt-get install -y \
+    python3-pip \
+    python3-dev \
+    nano \
+    iputils-ping \
+    x11-apps \
+    nautilus \
+    firefox \
+    git-all
+RUN pip3 install \
+    rospkg \
+    catkin_pkg \
+    Jetson.GPIO && \
+    groupadd -f -r gpio && \
+    usermod -a -G gpio root
+RUN pip3 install adafruit-circuitpython-pca9685
+RUN pip3 install adafruit-circuitpython-servokit
+
+
+#
+# Vesc
+#
+
+#
+# Create catkin_ws, rplidar_ws, rslidar_ws, zed_ws
+#
+WORKDIR /
+RUN mkdir -p /home/projects/catkin_ws/src
+RUN mkdir -p /home/projects/rplidar_ws/src
+RUN mkdir -p /home/projects/rslidar_ws/src
+RUN mkdir -p /home/projects/zed_ws/src
+
+#
+# Get ucsd_robo_Car
+#
+WORKDIR /home/projects/catkin_ws/src
+RUN git clone -b docker https://gitlab.com/djnighti/ucsd_robo_car_simple_ros.git
+
+
+#
+# Get RPLidar
+#
+WORKDIR /home/projects/rplidar_ws/src
+RUN git clone  https://github.com/Slamtec/rplidar_ros.git
+WORKDIR /home/projects/rplidar_ws
+RUN [\
+    "/bin/bash", \
+    "-c", \
+    "source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    catkin_make && \
+    source devel/setup.bash"\
+    ]
+
+#
+# Get RS Bpearl
+#
+WORKDIR /home/projects/rslidar_ws/src
+RUN git clone https://github.com/RoboSense-LiDAR/rslidar_sdk.git && \
+    cd rslidar_sdk && \
+    git submodule init && \
+    git submodule update
+WORKDIR /home/projects/rslidar_ws
+RUN [\
+    "/bin/bash", \
+    "-c", \
+    "source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    catkin_make && \
+    source devel/setup.bash"\
+    ]
+
+
+#
+# Source all builds
+#
+WORKDIR /
+RUN echo 'source /opt/ros/${ROS_DISTRO}/setup.bash' >> /root/.bashrc && \
+    echo 'source /home/projects/rplidar_ws/devel/setup.bash' >> /root/.bashrc && \
+    echo 'source /home/projects/rslidar_ws/devel/setup.bash' >> /root/.bashrc && \
+    echo 'cd /home/projects/catkin_ws/' >> /root/.bashrc && \
+    echo 'catkin_make' >> /root/.bashrc && \
+    echo 'source devel/setup.bash' >> /root/.bashrc
+RUN [\
+    "/bin/bash", \
+    "-c", \
+    "source ~/.bashrc"\
+    ]
+
+#
+# Place user in catkin_ws
+#
+WORKDIR /home/projects/catkin_ws/
+
